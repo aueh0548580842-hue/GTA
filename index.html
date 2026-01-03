@@ -1,32 +1,29 @@
-
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Crime City 3D - Ultimate Edition</title>
+    <title>Crime City 3D - Fixed & Living</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
         #ui {
             position: absolute; top: 20px; left: 20px;
             color: #00ff00; background: rgba(0,0,0,0.8);
             padding: 15px; border: 2px solid #00ff00; border-radius: 10px;
-            pointer-events: none; line-height: 1.6;
+            pointer-events: none; line-height: 1.6; z-index: 100;
         }
-        #timeDisplay { font-weight: bold; color: #fff; }
     </style>
 </head>
 <body>
 
     <div id="ui">
         <strong>מנוע תלת-ממד פעיל</strong><br>
-        סטטוס זמן: <span id="timeDisplay">יום</span><br>
+        סטטוס: עיר חיה ומאוכלסת<br>
         שליטה: WASD / חיצים לנהיגה
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.150.1/three.min.js"></script>
 
     <script>
-        // --- 1. הגדרות יסוד ---
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -34,165 +31,109 @@
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. תאורה ומחזור יום/לילה ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        // --- תאורה ---
+        scene.background = new THREE.Color(0x87ceeb); // יום
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
-
         const sunLight = new THREE.DirectionalLight(0xffffff, 1);
         sunLight.position.set(50, 100, 50);
         sunLight.castShadow = true;
         scene.add(sunLight);
 
-        // יצירת כוכבים
-        const starGeometry = new THREE.BufferGeometry();
-        const starVertices = [];
-        for (let i = 0; i < 3000; i++) {
-            starVertices.push((Math.random() - 0.5) * 1000, Math.random() * 500, (Math.random() - 0.5) * 1000);
-        }
-        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-        const stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 }));
-        scene.add(stars);
-
-        // יצירת ירח
-        const moonGeom = new THREE.SphereGeometry(5, 32, 32);
-        const moonMat = new THREE.MeshBasicMaterial({ color: 0xffffaa });
-        const moon = new THREE.Mesh(moonGeom, moonMat);
-        scene.add(moon);
-
-        // --- 3. קרקע ובניינים (עם התנגשויות) ---
-        const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(1000, 1000),
-            new THREE.MeshPhongMaterial({ color: 0x1a1a1a })
-        );
+        // --- קרקע ובניינים ---
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshPhongMaterial({ color: 0x222222 }));
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         scene.add(ground);
 
         const buildings = [];
         const buildingGeom = new THREE.BoxGeometry(1, 1, 1);
-        for (let i = 0; i < 80; i++) {
-            const h = 10 + Math.random() * 30;
-            const w = 8 + Math.random() * 4;
-            const b = new THREE.Mesh(buildingGeom, new THREE.MeshPhongMaterial({ color: 0x333344 }));
-            b.scale.set(w, h, w);
+        for (let i = 0; i < 60; i++) {
+            const h = 10 + Math.random() * 25;
+            const b = new THREE.Mesh(buildingGeom, new THREE.MeshPhongMaterial({ color: 0x444444 }));
+            b.scale.set(8, h, 8);
             b.position.set((Math.random() - 0.5) * 400, h/2, (Math.random() - 0.5) * 400);
-            
-            if (Math.abs(b.position.x) < 20 && Math.abs(b.position.z) < 20) continue;
-            
+            if (Math.abs(b.position.x) < 25) continue;
             b.castShadow = true;
-            b.receiveShadow = true;
             scene.add(b);
             buildings.push(new THREE.Box3().setFromObject(b));
         }
 
-        // --- 4. רכב שחקן ---
+        // --- רכב שחקן ---
         const car = new THREE.Group();
-        const body = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshPhongMaterial({ color: 0xff0000 }));
-        body.position.y = 0.5;
-        body.castShadow = true;
-        car.add(body);
-
-        // פנסי לילה
-        const headlight = new THREE.SpotLight(0xffffaa, 0, 30, 0.4);
-        headlight.position.set(0, 0.5, 2);
-        car.add(headlight);
-        car.add(headlight.target);
-        headlight.target.position.set(0, 0.5, 5);
-
+        const carBody = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshPhongMaterial({ color: 0xff0000 }));
+        carBody.position.y = 0.5;
+        carBody.castShadow = true;
+        car.add(carBody);
         scene.add(car);
 
-        // --- 5. תנועה ואנשים ---
-        const trafficCars = [];
-        for (let i = 0; i < 15; i++) {
-            const tc = new THREE.Group();
-            const tb = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff }));
-            tb.position.y = 0.5;
-            tc.add(tb);
-            tc.position.set((Math.random()-0.5)*300, 0, (Math.random()-0.5)*300);
-            tc.userData = { speed: 0.1 + Math.random() * 0.2 };
-            scene.add(tc);
-            trafficCars.push(tc);
-        }
-
+        // --- הולכי רגל (תיקון השגיאה) ---
         const people = [];
-        for (let i = 0; i < 30; i++) {
-            const p = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.8, 4, 8), new THREE.MeshPhongMaterial({ color: 0x0000ff }));
-            p.position.set((Math.random()-0.5)*200, 0.8, (Math.random()-0.5)*200);
-            p.userData = { angle: Math.random() * Math.PI * 2, speed: 0.03 };
+        // שימוש בצורת גליל במקום קפסולה ליתר ביטחון בגרסאות שונות
+        const personGeom = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
+        const personMat = new THREE.MeshPhongMaterial({ color: 0x3366ff });
+
+        for(let i=0; i<30; i++) {
+            const p = new THREE.Mesh(personGeom, personMat);
+            p.position.set((Math.random()-0.5)*200, 0.75, (Math.random()-0.5)*200);
+            p.userData = { angle: Math.random() * Math.PI * 2, speed: 0.03 + Math.random() * 0.02 };
             scene.add(p);
             people.push(p);
         }
 
-        // --- 6. לוגיקת עדכון ---
+        // --- תנועת רכבים נוספים ---
+        const trafficCars = [];
+        for(let i=0; i<10; i++) {
+            const tc = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff }));
+            tc.position.set((Math.random()-0.5)*300, 0.5, (Math.random()-0.5)*300);
+            tc.userData = { speed: 0.1 + Math.random() * 0.15 };
+            scene.add(tc);
+            trafficCars.push(tc);
+        }
+
+        // --- לוגיקה ---
         const keys = {};
         window.onkeydown = e => keys[e.code] = true;
         window.onkeyup = e => keys[e.code] = false;
-
-        let speed = 0, angle = 0, worldTime = 0;
-
-        function updateEnvironment() {
-            worldTime += 0.0005;
-            if (worldTime > 1) worldTime = 0;
-
-            const isNight = worldTime > 0.45 && worldTime < 0.9;
-            scene.background = new THREE.Color(isNight ? 0x020205 : 0x87ceeb);
-            sunLight.intensity = isNight ? 0.1 : 1;
-            stars.visible = isNight;
-            headlight.intensity = isNight ? 3 : 0;
-            
-            // הזזת ירח ושמש
-            const rot = worldTime * Math.PI * 2;
-            moon.position.set(Math.cos(rot)*200, Math.sin(rot)*200, 0);
-            document.getElementById('timeDisplay').innerText = isNight ? "לילה" : "יום";
-        }
+        let speed = 0, angle = 0;
 
         function animate() {
             requestAnimationFrame(animate);
-            updateEnvironment();
 
-            // נהיגה
             if (keys['KeyW'] || keys['ArrowUp']) speed += 0.01;
             if (keys['KeyS'] || keys['ArrowDown']) speed -= 0.01;
-            speed *= 0.96;
+            speed *= 0.95;
             if (keys['KeyA'] || keys['ArrowLeft']) angle += 0.04;
             if (keys['KeyD'] || keys['ArrowRight']) angle -= 0.04;
 
-            const nextX = car.position.x + Math.sin(angle) * speed;
-            const nextZ = car.position.z + Math.cos(angle) * speed;
-            const carBox = new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(nextX, 0.5, nextZ), new THREE.Vector3(2, 1, 4));
-
-            let collision = false;
-            buildings.forEach(b => { if(carBox.intersectsBox(b)) collision = true; });
-
-            if (!collision) {
-                car.position.x = nextX;
-                car.position.z = nextZ;
-            } else { speed = -speed * 0.5; }
-
+            car.position.x += Math.sin(angle) * speed;
+            car.position.z += Math.cos(angle) * speed;
             car.rotation.y = angle;
 
-            // עדכון AI
-            trafficCars.forEach(tc => { tc.position.z += tc.userData.speed; if(tc.position.z > 250) tc.position.z = -250; });
+            // עדכון אנשים
             people.forEach(p => {
                 p.position.x += Math.sin(p.userData.angle) * p.userData.speed;
                 p.position.z += Math.cos(p.userData.angle) * p.userData.speed;
-                if(Math.abs(p.position.x) > 250 || Math.abs(p.position.z) > 250) p.position.set(0, 0.8, 0);
+                if(Math.abs(p.position.x) > 250 || Math.abs(p.position.z) > 250) p.position.set(0, 0.75, 0);
             });
 
-            // מצלמה
+            // עדכון רכבים
+            trafficCars.forEach(tc => {
+                tc.position.z += tc.userData.speed;
+                if(tc.position.z > 250) tc.position.z = -250;
+            });
+
             camera.position.set(car.position.x - Math.sin(angle)*12, 6, car.position.z - Math.cos(angle)*12);
             camera.lookAt(car.position);
-
             renderer.render(scene, camera);
         }
+        animate();
 
-        window.onresize = () => {
+        window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        };
-
-        animate();
+        });
     </script>
 </body>
 </html>

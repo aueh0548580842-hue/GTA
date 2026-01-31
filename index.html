@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>רבי עקיבא פינת חזון איש</title>
+    <title>רבי עקיבא המלא - 4 נתיבים</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         #ui {
             position: absolute; top: 10px; right: 10px;
             color: #000; background: rgba(255,255,255,0.9);
-            padding: 10px; border: 2px solid #000; border-radius: 8px;
-            pointer-events: none; z-index: 100; font-weight: bold;
+            padding: 15px; border: 3px solid #333; border-radius: 8px;
+            pointer-events: none; z-index: 100; font-weight: bold; font-size: 18px;
         }
         #controls {
             position: absolute; bottom: 30px; left: 30px;
-            display: grid; grid-template-columns: repeat(3, 70px); grid-gap: 15px;
+            display: grid; grid-template-columns: repeat(3, 80px); grid-gap: 10px;
             z-index: 100;
         }
         .btn {
-            width: 70px; height: 70px; background: rgba(0,0,0,0.2);
-            border: 2px solid rgba(255,255,255,0.8); border-radius: 15px;
+            width: 80px; height: 80px; background: rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.9); border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            color: white; font-size: 30px; user-select: none; backdrop-filter: blur(5px);
+            color: white; font-size: 35px; user-select: none; backdrop-filter: blur(4px);
         }
         @media (min-width: 1024px) { #controls { display: none; } }
     </style>
@@ -29,26 +29,29 @@
 <body>
 
     <div id="ui">
-        <strong>הצומת המרכזית</strong><br>
-        רבי עקיבא / חזון איש<br>
-        היזהר מאוטובוסים!
+        <strong>רחוב רבי עקיבא - המהדורה המלאה</strong><br>
+        מסלול: גן ורשה -> חזון איש -> אהרונוביץ'<br>
+        יש 2 נתיבים לכל כיוון. סע בזהירות!
     </div>
 
     <div id="controls">
-        <div id="up" class="btn">↑</div>
-        <div id="left" class="btn">←</div>
-        <div id="down" class="btn">↓</div>
-        <div id="right" class="btn">→</div>
+        <div id="up" class="btn" style="grid-column: 2;">↑</div>
+        <div id="left" class="btn" style="grid-column: 1; grid-row: 2;">←</div>
+        <div id="down" class="btn" style="grid-column: 2; grid-row: 2;">↓</div>
+        <div id="right" class="btn" style="grid-column: 3; grid-row: 2;">→</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
+        // --- הגדרות ציר רבי עקיבא ---
+        // Z=0 זה חזון איש. Z=-500 זה גן ורשה. Z=500 זה אהרונוביץ
+        
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB); 
-        scene.fog = new THREE.Fog(0x87CEEB, 20, 300); 
+        scene.fog = new THREE.Fog(0x87CEEB, 20, 350); 
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
@@ -58,7 +61,7 @@
         // --- טקסטורות ---
         const texLoader = new THREE.TextureLoader();
         const asphaltTex = texLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/terrain/grasslight-big.jpg');
-        asphaltTex.wrapS = asphaltTex.wrapT = THREE.RepeatWrapping; asphaltTex.repeat.set(50, 50);
+        asphaltTex.wrapS = asphaltTex.wrapT = THREE.RepeatWrapping; asphaltTex.repeat.set(50, 200);
         
         const stoneTex = texLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/brick_diffuse.jpg');
         stoneTex.wrapS = stoneTex.wrapT = THREE.RepeatWrapping;
@@ -67,237 +70,265 @@
         const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambLight);
         const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-        sun.position.set(100, 200, 50);
+        sun.position.set(100, 300, 100);
         sun.castShadow = true;
+        // הרחבת טווח הצללים כדי שיכסה את כל הרחוב הארוך
+        sun.shadow.camera.top = 500; sun.shadow.camera.bottom = -500;
+        sun.shadow.camera.left = -500; sun.shadow.camera.right = 500;
+        sun.shadow.mapSize.width = 4096; sun.shadow.mapSize.height = 4096;
         scene.add(sun);
 
-        // --- קרקע ---
+        // --- הכביש הראשי (רבי עקיבא) - רוחב כפול ל-4 נתיבים ---
+        const ROAD_WIDTH = 50; // רחב מאוד
+        const MAIN_LENGTH = 2000;
+        
         const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(1000, 1000),
-            new THREE.MeshStandardMaterial({ map: asphaltTex, color: 0x555555 })
+            new THREE.PlaneGeometry(ROAD_WIDTH + 40, MAIN_LENGTH), // +40 למדרכות
+            new THREE.MeshStandardMaterial({ map: asphaltTex, color: 0x444444 })
         );
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         scene.add(ground);
 
+        // --- פונקציות עזר ---
         const colliders = [];
 
-        // --- יצירת שלט רחוב (Canvas) ---
-        function createStreetSign(text) {
+        function createSign(text, color) {
             const canvas = document.createElement('canvas');
-            canvas.width = 256; canvas.height = 64;
+            canvas.width = 512; canvas.height = 128;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#006600'; // ירוק כהה של שלטי רחוב
-            ctx.fillRect(0,0,256,64);
+            ctx.fillStyle = '#005500'; // ירוק תמרור
+            ctx.fillRect(0,0,512,128);
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 10;
+            ctx.strokeRect(5,5,502,118);
             ctx.fillStyle = 'white';
-            ctx.font = 'bold 30px Arial';
+            ctx.font = 'bold 50px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(text, 128, 32);
+            ctx.fillText(text, 256, 64);
             
             const tex = new THREE.CanvasTexture(canvas);
-            const mat = new THREE.MeshBasicMaterial({ map: tex });
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 0.1), mat);
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 0.2), new THREE.MeshBasicMaterial({ map: tex }));
             return mesh;
         }
 
-        // --- יצירת רמזור ---
-        function createTrafficLight() {
-            const group = new THREE.Group();
-            // עמוד
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 6, 8), new THREE.MeshStandardMaterial({ color: 0x888888 }));
-            pole.position.y = 3;
-            group.add(pole);
-            // קופסה
-            const box = new THREE.Mesh(new THREE.BoxGeometry(1, 2.5, 1), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-            box.position.y = 5.5;
-            group.add(box);
+        function createTrafficLight(x, z) {
+            const g = new THREE.Group();
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 8, 8), new THREE.MeshStandardMaterial({ color: 0x555555 }));
+            pole.position.y = 4;
+            g.add(pole);
+            const box = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3.5, 1.5), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+            box.position.y = 7;
+            g.add(box);
             // אורות
-            const red = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-            red.position.set(0, 6.2, 0.4);
-            group.add(red);
-            const green = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
-            green.position.set(0, 4.8, 0.4);
-            group.add(green);
-            return group;
+            const r = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({ color: 0xff0000 })); r.position.set(0,8,0.6); g.add(r);
+            const gr = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({ color: 0x00ff00 })); gr.position.set(0,6,0.6); g.add(gr);
+            g.position.set(x, 0, z);
+            scene.add(g);
         }
 
-        // --- בניית הרחובות ---
-        const BUILDING_LINE_Z = 20; // מרחק בניינים מהמרכז ברבי עקיבא
-        const BUILDING_LINE_X = 20; // מרחק בניינים מהמרכז בחזון איש
-
-        function createBuilding(x, z, rotY, isShop) {
-            const w = 12 + Math.random()*8;
-            const h = 15 + Math.random()*15;
-            const d = 12 + Math.random()*8;
-            
-            const mesh = new THREE.Mesh(
-                new THREE.BoxGeometry(w, h, d),
-                new THREE.MeshStandardMaterial({ map: stoneTex, color: 0xe0dacc })
-            );
-            mesh.position.set(x, h/2, z);
-            mesh.rotation.y = rotY;
-            mesh.castShadow = true;
-            
-            // בדיקת התנגשות (פשוטה) - מוסיפים קופסה לרשימה
-            const box = new THREE.Box3().setFromObject(mesh);
-            colliders.push(box);
-            
-            scene.add(mesh);
-
-            // אם זה רחוב ראשי - נוסיף "חנות" (סוכך)
-            if(isShop) {
-                const awning = new THREE.Mesh(
-                    new THREE.BoxGeometry(w, 0.2, 3),
-                    new THREE.MeshStandardMaterial({ color: Math.random()>0.5 ? 0xff0000 : 0x0000ff })
-                );
-                awning.position.set(x, 3, z + (z > 0 ? -d/2 -1 : d/2 + 1)); 
-                if (rotY !== 0) { // אם הבניין מסובב
-                     awning.position.set(x + (x > 0 ? -w/2 -1 : w/2 + 1), 3, z);
-                     awning.rotation.y = Math.PI/2;
-                }
-                scene.add(awning);
-            }
-        }
-
-        // בניית רחוב רבי עקיבא (ציר Z)
-        for(let z = -400; z <= 400; z += 20) {
-            if(Math.abs(z) < 30) continue; // רווח לצומת
-            createBuilding(BUILDING_LINE_Z + 5, z, 0, true);  // צד ימין
-            createBuilding(-BUILDING_LINE_Z - 5, z, 0, true); // צד שמאל
-        }
-
-        // בניית רחוב חזון איש (ציר X)
-        for(let x = -400; x <= 400; x += 20) {
-            if(Math.abs(x) < 30) continue; // רווח לצומת
-            createBuilding(x, BUILDING_LINE_X + 5, Math.PI/2, false);
-            createBuilding(x, -BUILDING_LINE_X - 5, Math.PI/2, false);
-        }
-
-        // --- הוספת אלמנטים לצומת ---
+        // --- הגדרת הצמתים (לפי מיקום Z) ---
+        // נשתמש במיפוי דמיוני: 
+        // -600 = גן ורשה / ירושלים
+        // 0 = חזון איש
+        // +600 = אהרונוביץ
         
-        // שלטי רחוב
-        const signRA = createStreetSign("רחוב רבי עקיבא");
-        signRA.position.set(15, 6, -15);
-        signRA.rotation.y = -Math.PI/2;
-        scene.add(signRA);
+        const INTERSECTIONS = [
+            { z: -600, name: "גן ורשה / ירושלים", hasLight: true },
+            { z: -300, name: "הרב קוק", hasLight: false },
+            { z: 0, name: "חזון איש", hasLight: true },
+            { z: 300, name: "הרב שך", hasLight: false },
+            { z: 600, name: "אהרונוביץ'", hasLight: true }
+        ];
 
-        const signHI = createStreetSign("רחוב חזון איש");
-        signHI.position.set(-15, 7, 15);
-        scene.add(signHI);
+        // --- בניית העולם ---
+        
+        // לולאה שבונה את הבניינים לאורך כל הרחוב, אבל מדלגת על הצמתים
+        for (let z = -900; z <= 900; z += 20) {
+            
+            // בדיקה האם אנחנו בתוך אזור צומת
+            let isIntersection = false;
+            INTERSECTIONS.forEach(i => {
+                if (Math.abs(z - i.z) < 35) isIntersection = true; // רדיוס של 35 מטר לצומת
+            });
 
-        // רמזורים בפינות
-        const tl1 = createTrafficLight(); tl1.position.set(12, 0, 12); tl1.rotation.y = -Math.PI/4; scene.add(tl1);
-        const tl2 = createTrafficLight(); tl2.position.set(-12, 0, -12); tl2.rotation.y = Math.PI*0.75; scene.add(tl2);
+            if (isIntersection) {
+                // אם אנחנו בצומת - בונים כביש חוצה
+                const crossRoad = new THREE.Mesh(
+                    new THREE.PlaneGeometry(300, 40),
+                    new THREE.MeshStandardMaterial({ map: asphaltTex, color: 0x444444 })
+                );
+                crossRoad.rotation.x = -Math.PI / 2;
+                crossRoad.position.set(0, 0.01, z);
+                scene.add(crossRoad);
+                continue; // מדלגים על בניית בניין כאן
+            }
 
-        // אבני שפה (מדרכה) לאורך הרחובות
-        const curbGeo = new THREE.BoxGeometry(1, 0.5, 800);
-        const curbMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
-        // רבי עקיבא
-        const c1 = new THREE.Mesh(curbGeo, curbMat); c1.position.set(16, 0.25, 0); scene.add(c1);
-        const c2 = new THREE.Mesh(curbGeo, curbMat); c2.position.set(-16, 0.25, 0); scene.add(c2);
-        // חזון איש
-        const c3 = new THREE.Mesh(curbGeo, curbMat); c3.rotation.y = Math.PI/2; c3.position.set(0, 0.25, 16); scene.add(c3);
-        const c4 = new THREE.Mesh(curbGeo, curbMat); c4.rotation.y = Math.PI/2; c4.position.set(0, 0.25, -16); scene.add(c4);
+            // בניית בניינים (משמאל ומימין)
+            // צד ימין
+            createBuilding(35, z, 0); 
+            // צד שמאל
+            createBuilding(-35, z, 0);
+        }
+
+        function createBuilding(x, z, rot) {
+            const w = 15 + Math.random() * 5;
+            const h = 15 + Math.random() * 20; // גובה משתנה
+            const d = 18; // עומק הבניין
+            
+            const b = new THREE.Mesh(
+                new THREE.BoxGeometry(w, h, d),
+                new THREE.MeshStandardMaterial({ map: stoneTex, color: 0xe5dcc3 }) // אבן ירושלמית
+            );
+            b.position.set(x, h/2, z);
+            b.castShadow = true;
+            b.receiveShadow = true;
+            
+            // הוספת סוככים לחנויות למטה
+            const shop = new THREE.Mesh(new THREE.BoxGeometry(w, 0.2, 2), new THREE.MeshStandardMaterial({ color: Math.random()>0.5 ? 0x000088 : 0x880000 }));
+            shop.position.set(x + (x>0?-2:2), 3, z);
+            scene.add(shop);
+
+            scene.add(b);
+            colliders.push(new THREE.Box3().setFromObject(b));
+        }
+
+        // --- הוספת שלטים ורמזורים בצמתים ---
+        INTERSECTIONS.forEach(intersect => {
+            // שלט רחוב חוצה
+            const sign = createSign(intersect.name);
+            sign.position.set(0, 8, intersect.z);
+            scene.add(sign);
+
+            if(intersect.hasLight) {
+                createTrafficLight(20, intersect.z + 20);
+                createTrafficLight(-20, intersect.z - 20);
+            }
+        });
+
+        // --- אבני שפה (מדרכה) וסימוני נתיבים ---
+        // אי תנועה באמצע (מפריד בין הנתיבים הנגדיים)
+        const islandGeo = new THREE.BoxGeometry(2, 0.5, MAIN_LENGTH);
+        const islandMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+        const island = new THREE.Mesh(islandGeo, islandMat);
+        island.position.y = 0.25;
+        scene.add(island);
+        colliders.push(new THREE.Box3().setFromObject(island));
+
+        // סימון נתיבים (קו מקווקו לבן) - מפריד בין נתיב ימין לשמאל באותו כיוון
+        for(let z=-900; z<900; z+=10) {
+            // צד ימין (בין נתיב 1 ל-2)
+            const lineR = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            lineR.rotation.x = -Math.PI/2;
+            lineR.position.set(12, 0.05, z);
+            scene.add(lineR);
+            
+            // צד שמאל (בין נתיב 1 ל-2)
+            const lineL = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            lineL.rotation.x = -Math.PI/2;
+            lineL.position.set(-12, 0.05, z);
+            scene.add(lineL);
+        }
 
 
         // --- שחקן ---
         const player = new THREE.Group();
-        const carMesh = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 4.6), new THREE.MeshStandardMaterial({ color: 0x3366ff })); // רכב כחול
+        const carMesh = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 4.6), new THREE.MeshStandardMaterial({ color: 0x3366ff }));
         carMesh.position.y = 0.5; player.add(carMesh);
         player.castShadow = true;
-        // מתחיל ברבי עקיבא קצת לפני הצומת
-        player.position.set(5, 0, 50); 
+        
+        // התחלה בגן ורשה (דרום הרחוב), נתיב ימני
+        player.position.set(18, 0, -600); 
+        player.userData = { speed: 0, angle: 0 };
         scene.add(player);
 
-        // --- תנועה: אוטובוסים ומכוניות ---
+        // --- תנועה (AI) ב-4 נתיבים ---
         const traffic = [];
         
-        function spawnVehicle(isBus, isZaxis, dir) {
+        // מיקומי נתיבים (X):
+        // צד ימין (נוסעים צפונה +): נתיב איטי 18, נתיב מהיר 8
+        // צד שמאל (נוסעים דרומה -): נתיב איטי -18, נתיב מהיר -8
+        
+        function spawnCar(laneX, speed, isBus) {
             const grp = new THREE.Group();
-            
-            if(isBus) {
-                // אוטובוס צהוב
-                const body = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 10), new THREE.MeshStandardMaterial({ color: 0xffcc00 }));
-                body.position.y = 1.5;
-                grp.add(body);
+            if (isBus) {
+                // אוטובוס
+                const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.2, 11), new THREE.MeshStandardMaterial({ color: 0xffcc00 }));
+                body.position.y = 1.6; grp.add(body);
             } else {
-                // רכב רגיל
+                // רכב
                 const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 4.6), new THREE.MeshStandardMaterial({ color: Math.random()*0xffffff }));
-                body.position.y = 0.5;
-                grp.add(body);
+                body.position.y = 0.5; grp.add(body);
             }
-
-            const laneOffset = 6 * dir; // ימין או שמאל
             
-            if(isZaxis) {
-                grp.position.set(laneOffset, 0, (Math.random()-0.5)*800);
-                if(dir === 1) grp.rotation.y = Math.PI; // הפוך אם נוסע דרומה (נגיד)
-                grp.userData = { axis: 'z', speed: (isBus?0.15:0.25) * -dir }; // מהירות לפי סוג וכיוון
-            } else {
-                grp.position.set((Math.random()-0.5)*800, 0, laneOffset);
-                grp.rotation.y = dir === 1 ? -Math.PI/2 : Math.PI/2;
-                grp.userData = { axis: 'x', speed: (isBus?0.15:0.25) * -dir };
-            }
+            const zPos = (Math.random() - 0.5) * 1600; // פיזור לאורך כל הרחוב
+            grp.position.set(laneX, 0, zPos);
+            
+            const direction = laneX > 0 ? 1 : -1; // חיובי נוסע ל+Z, שלילי ל-Z
+            if (direction === -1) grp.rotation.y = Math.PI;
 
+            grp.userData = { speed: speed * direction, startX: laneX };
             scene.add(grp);
             traffic.push(grp);
         }
 
-        // יצירת תנועה
-        for(let i=0; i<10; i++) spawnVehicle(true, true, 1); // אוטובוסים רבי עקיבא צד 1
-        for(let i=0; i<10; i++) spawnVehicle(false, true, -1); // רכבים רבי עקיבא צד 2
-        for(let i=0; i<8; i++) spawnVehicle(true, false, 1); // אוטובוסים חזון איש
-        for(let i=0; i<8; i++) spawnVehicle(false, false, -1); // רכבים חזון איש
+        // יצירת תנועה מסיבית
+        for(let i=0; i<15; i++) spawnCar(18, 0.2, true);  // אוטובוסים בימין (איטי)
+        for(let i=0; i<15; i++) spawnCar(8, 0.35, false); // רכבים בימין (מהיר)
+        for(let i=0; i<15; i++) spawnCar(-18, 0.2, true); // אוטובוסים בשמאל (איטי)
+        for(let i=0; i<15; i++) spawnCar(-8, 0.35, false);// רכבים בשמאל (מהיר)
 
 
         // --- לוגיקה ---
         const keys = {};
         window.onkeydown = e => keys[e.code] = true;
         window.onkeyup = e => keys[e.code] = false;
-        let speed = 0, angle = 0;
 
         function animate() {
             requestAnimationFrame(animate);
 
-            if (keys['KeyW'] || keys['ArrowUp']) speed += 0.015;
-            if (keys['KeyS'] || keys['ArrowDown']) speed -= 0.015;
-            speed *= 0.96;
+            // שליטה ברכב
+            if (keys['KeyW'] || keys['ArrowUp']) player.userData.speed += 0.01;
+            if (keys['KeyS'] || keys['ArrowDown']) player.userData.speed -= 0.01;
+            player.userData.speed *= 0.96; // חיכוך
             
-            if (Math.abs(speed) > 0.001) {
+            if (Math.abs(player.userData.speed) > 0.001) {
                 const turn = (keys['KeyA'] || keys['ArrowLeft']) ? 0.03 : ((keys['KeyD'] || keys['ArrowRight']) ? -0.03 : 0);
-                angle += turn * (speed / 0.6);
+                player.userData.angle += turn * (player.userData.speed / 0.5);
             }
 
-            const nextX = player.position.x + Math.sin(angle) * speed;
-            const nextZ = player.position.z + Math.cos(angle) * speed;
+            const nextX = player.position.x + Math.sin(player.userData.angle) * player.userData.speed;
+            const nextZ = player.position.z + Math.cos(player.userData.angle) * player.userData.speed;
 
-            // התנגשות בבניינים
+            // בדיקת התנגשות (בניינים ואי תנועה)
             const pBox = new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(nextX, 0.5, nextZ), new THREE.Vector3(2, 1, 4));
             let crash = false;
             for(const box of colliders) { if (pBox.intersectsBox(box)) { crash = true; break; } }
 
-            if(!crash) { player.position.x = nextX; player.position.z = nextZ; }
-            else { speed = -0.1; } // מכה קטנה לאחור
-            
-            player.rotation.y = angle;
+            if(!crash) { 
+                player.position.x = nextX; 
+                player.position.z = nextZ; 
+            } else { 
+                player.userData.speed = -player.userData.speed * 0.5; 
+            }
+            player.rotation.y = player.userData.angle;
 
-            // תנועת מכוניות
+            // עדכון תנועה
             traffic.forEach(t => {
-                if(t.userData.axis === 'z') {
-                    t.position.z += t.userData.speed;
-                    if(Math.abs(t.position.z) > 400) t.position.z *= -1;
-                } else {
-                    t.position.x += t.userData.speed;
-                    if(Math.abs(t.position.x) > 400) t.position.x *= -1;
-                }
+                t.position.z += t.userData.speed;
+                // לולאה אינסופית לכביש
+                if (t.userData.speed > 0 && t.position.z > 900) t.position.z = -900;
+                if (t.userData.speed < 0 && t.position.z < -900) t.position.z = 900;
             });
 
-            // מצלמה עוקבת
-            camera.position.x = player.position.x - Math.sin(angle) * 15;
-            camera.position.z = player.position.z - Math.cos(angle) * 15;
+            // מצלמה
+            camera.position.x = player.position.x; 
             camera.position.y = 8;
-            camera.lookAt(player.position);
+            camera.position.z = player.position.z - (Math.cos(player.userData.angle) * 15);
+            // הזזה קלה אחורה לפי הזווית
+            camera.position.x -= Math.sin(player.userData.angle) * 15;
+            camera.lookAt(player.position.x, 2, player.position.z);
 
             renderer.render(scene, camera);
         }

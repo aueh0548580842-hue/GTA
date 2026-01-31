@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>עיר עם צמתים ורחובות</title>
+    <title>עיר דו-סטרית מלאה</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         #ui {
             position: absolute; top: 10px; right: 10px;
-            color: #ffffff; background: rgba(0,0,0,0.7);
-            padding: 10px; border: 1px solid #555; border-radius: 8px;
-            pointer-events: none; z-index: 100;
-            text-shadow: 1px 1px 2px black;
+            color: #ffffff; background: rgba(0,0,0,0.8);
+            padding: 10px; border: 1px solid #aaa; border-radius: 8px;
+            pointer-events: none; z-index: 100; text-shadow: 1px 1px 2px black;
         }
         #controls {
             position: absolute; bottom: 30px; left: 30px;
@@ -30,9 +29,9 @@
 <body>
 
     <div id="ui">
-        <strong>עיר פתוחה - רשת רחובות</strong><br>
-        סע בכבישים, פנה בצמתים.<br>
-        היזהר לא לעלות על המדרכות!
+        <strong>מערכת כבישים דו-סטרית</strong><br>
+        שמור על הימין!<br>
+        היזהר לא להתנגש ברכבים בנתיב הנגדי.
     </div>
 
     <div id="controls">
@@ -45,17 +44,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        // --- הגדרות העיר ---
-        const BLOCK_SIZE = 80; // גודל כל גוש בניינים (מדרכה)
-        const ROAD_WIDTH = 30; // רוחב הכביש בין הגושים
-        const TILE_SIZE = BLOCK_SIZE + ROAD_WIDTH; // גודל יחידה שלמה (מדרכה + כביש)
-        const CITY_SIZE = 6; // גודל העיר (6x6 בלוקים)
+        // --- הגדרות מידות העיר ---
+        const BLOCK_SIZE = 70;   // גודל המדרכה/בניינים
+        const ROAD_WIDTH = 40;   // רוחב הכביש (רחב מספיק ל-2 נתיבים)
+        const LANE_OFFSET = 10;  // מרחק הנתיב ממרכז הכביש
+        const GRID_SIZE = 6;     // גודל העיר (6x6 בלוקים)
+        const TILE_SIZE = BLOCK_SIZE + ROAD_WIDTH; 
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xa0d8ef);
-        scene.fog = new THREE.FogExp2(0xa0d8ef, 0.0025); // ערפל
+        scene.background = new THREE.Color(0x87CEEB); // שמיים
+        scene.fog = new THREE.Fog(0x87CEEB, 20, 250); // ערפל להסתרת קצה העולם
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
@@ -63,154 +63,222 @@
         document.body.appendChild(renderer.domElement);
 
         // --- טעינת טקסטורות ---
-        const textureLoader = new THREE.TextureLoader();
-        const asphaltTex = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/terrain/grasslight-big.jpg');
-        asphaltTex.wrapS = asphaltTex.wrapT = THREE.RepeatWrapping; asphaltTex.repeat.set(50, 50);
-
-        const concreteTex = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/floors/FloorsCheckerboard_S_Diffuse.jpg');
-        concreteTex.wrapS = concreteTex.wrapT = THREE.RepeatWrapping; concreteTex.repeat.set(4, 4);
-
-        const buildingTex = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/brick_diffuse.jpg');
+        const texLoader = new THREE.TextureLoader();
+        const asphaltTex = texLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/terrain/grasslight-big.jpg');
+        asphaltTex.wrapS = asphaltTex.wrapT = THREE.RepeatWrapping; asphaltTex.repeat.set(20, 20);
+        
+        const concreteTex = texLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/floors/FloorsCheckerboard_S_Diffuse.jpg');
+        concreteTex.wrapS = concreteTex.wrapT = THREE.RepeatWrapping; concreteTex.repeat.set(2, 2);
 
         // --- תאורה ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-        dirLight.position.set(100, 200, 50);
-        dirLight.castShadow = true;
-        dirLight.shadow.camera.top = 200;
-        dirLight.shadow.camera.bottom = -200;
-        dirLight.shadow.camera.left = -200;
-        dirLight.shadow.camera.right = 200;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
-        scene.add(dirLight);
+        const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambLight);
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(100, 150, 50);
+        sun.castShadow = true;
+        sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+        sun.shadow.camera.left = -200; sun.shadow.camera.right = 200;
+        sun.shadow.camera.top = 200; sun.shadow.camera.bottom = -200;
+        scene.add(sun);
 
-        // --- בניית הקרקע (הכביש הגדול מתחת להכל) ---
-        const groundGeo = new THREE.PlaneGeometry(2000, 2000);
-        const groundMat = new THREE.MeshStandardMaterial({ map: asphaltTex, color: 0x444444, roughness: 0.9 });
-        const ground = new THREE.Mesh(groundGeo, groundMat);
+        // --- רצפה ראשית (אספלט) ---
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(1000, 1000),
+            new THREE.MeshStandardMaterial({ map: asphaltTex, color: 0x333333, roughness: 0.8 })
+        );
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.1; // טיפה למטה כדי למנוע ריצוד
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // --- רשימת המדרכות (לצורך התנגשות) ---
+        // --- רשימת גבולות (מדרכות) להתנגשות ---
         const colliders = [];
 
-        // --- פונקציה ליצירת "בלוק" עירוני (מדרכה + בניינים) ---
-        function createCityBlock(x, z) {
-            const blockGroup = new THREE.Group();
-            blockGroup.position.set(x, 0, z);
+        // --- פונקציה לבניית בלוק עירוני ---
+        function createBlock(x, z) {
+            const block = new THREE.Group();
+            block.position.set(x, 0, z);
 
-            // 1. המדרכה (הבסיס)
-            const sidewalkGeo = new THREE.BoxGeometry(BLOCK_SIZE, 0.8, BLOCK_SIZE);
-            const sidewalkMat = new THREE.MeshStandardMaterial({ map: concreteTex, color: 0xcccccc });
-            const sidewalk = new THREE.Mesh(sidewalkGeo, sidewalkMat);
+            // מדרכה (אי תנועה)
+            const sidewalk = new THREE.Mesh(
+                new THREE.BoxGeometry(BLOCK_SIZE, 0.8, BLOCK_SIZE),
+                new THREE.MeshStandardMaterial({ map: concreteTex, color: 0x999999 })
+            );
             sidewalk.position.y = 0.4;
-            sidewalk.receiveShadow = true;
-            sidewalk.castShadow = true;
-            blockGroup.add(sidewalk);
+            sidewalk.castShadow = true; sidewalk.receiveShadow = true;
+            block.add(sidewalk);
 
-            // שמירת המיקום הגלובלי של המדרכה לבדיקת התנגשות
-            // אנחנו יוצרים תיבה דמיונית סביב המדרכה
-            const boundingBox = new THREE.Box3().setFromObject(sidewalk);
-            // צריך לעדכן את המיקום האמיתי כי הקבוצה עדיין לא זזה בסצנה כשאנחנו יוצרים אותה
-            boundingBox.translate(new THREE.Vector3(x, 0, z)); 
-            colliders.push(boundingBox);
+            // שמירת התנגשות
+            const box = new THREE.Box3().setFromObject(sidewalk);
+            box.translate(new THREE.Vector3(x, 0, z)); // התאמה למיקום בעולם
+            colliders.push(box);
 
-            // 2. בניינים על המדרכה
-            const buildingMat = new THREE.MeshStandardMaterial({ map: buildingTex, color: 0xaaaaaa });
-            
-            // בונה 4-9 בניינים בתוך הבלוק הזה
-            const numBuildings = 4 + Math.floor(Math.random() * 5);
+            // בניינים על המדרכה
+            const numBuildings = 3 + Math.floor(Math.random() * 4);
             for(let i=0; i<numBuildings; i++) {
-                const w = 10 + Math.random() * 15;
-                const d = 10 + Math.random() * 15;
-                const h = 20 + Math.random() * 50;
-                
-                const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), buildingMat);
-                
-                // מיקום רנדומלי בתוך גבולות המדרכה
-                const range = BLOCK_SIZE / 2 - 10;
-                b.position.set(
-                    (Math.random() - 0.5) * 2 * range,
-                    h / 2 + 0.8, // מעל המדרכה
-                    (Math.random() - 0.5) * 2 * range
+                const w = 15 + Math.random() * 10;
+                const h = 20 + Math.random() * 40;
+                const building = new THREE.Mesh(
+                    new THREE.BoxGeometry(w, h, w),
+                    new THREE.MeshStandardMaterial({ color: 0x888899 }) // גוון בטון
                 );
-                b.castShadow = true;
-                b.receiveShadow = true;
-                blockGroup.add(b);
-            }
-
-            // 3. אנשים על המדרכה
-            const personGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.8, 8);
-            const personMat = new THREE.MeshStandardMaterial({ color: 0x2244aa });
-            for(let i=0; i<5; i++) {
-                const p = new THREE.Mesh(personGeo, personMat);
-                const range = BLOCK_SIZE / 2 - 2;
-                p.position.set(
-                    (Math.random() - 0.5) * 2 * range,
-                    1.7, // גובה אדם + גובה מדרכה
-                    (Math.random() - 0.5) * 2 * range
+                
+                // פיזור בניינים בתוך המדרכה
+                const offset = BLOCK_SIZE/2 - 12;
+                building.position.set(
+                    (Math.random()-0.5) * offset * 2,
+                    h/2 + 0.4,
+                    (Math.random()-0.5) * offset * 2
                 );
-                p.castShadow = true;
-                blockGroup.add(p);
+                building.castShadow = true;
+                block.add(building);
+                
+                // חלונות (קוביות שחורות קטנות) - לאווירה
+                const winGeo = new THREE.BoxGeometry(0.5, 0.5, 0.2);
+                const winMat = new THREE.MeshBasicMaterial({ color: 0xffffaa }); // אור בחלון
+                for(let j=0; j<10; j++) {
+                     const win = new THREE.Mesh(winGeo, winMat);
+                     win.position.set(
+                        building.position.x + (w/2 + 0.1), 
+                        (Math.random() * h) + 2, 
+                        building.position.z + (Math.random()-0.5)*w
+                     );
+                     if (win.position.y < h) block.add(win);
+                }
             }
-
-            scene.add(blockGroup);
+            scene.add(block);
         }
 
-        // --- יצירת הגריד ---
-        // לולאה כפולה ליצירת בלוקים
-        for (let x = -CITY_SIZE/2; x < CITY_SIZE/2; x++) {
-            for (let z = -CITY_SIZE/2; z < CITY_SIZE/2; z++) {
-                // המיקום הוא האינדקס כפול גודל היחידה
-                createCityBlock(x * TILE_SIZE, z * TILE_SIZE);
+        // --- בניית הגריד וסימוני הכביש ---
+        function createRoadMarkings() {
+            // פס הפרדה (קו מקווקו צהוב)
+            const dashGeo = new THREE.PlaneGeometry(2, 6);
+            const dashMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+
+            // לולאה ליצירת הבלוקים וסימוני הכביש
+            for (let x = -GRID_SIZE/2; x < GRID_SIZE/2; x++) {
+                for (let z = -GRID_SIZE/2; z < GRID_SIZE/2; z++) {
+                    const centerX = x * TILE_SIZE;
+                    const centerZ = z * TILE_SIZE;
+                    
+                    // יצירת הבלוק (מדרכה ובניינים)
+                    createBlock(centerX, centerZ);
+
+                    // יצירת סימוני כביש (באמצע הרווחים)
+                    // קווים אנכיים (לאורך ציר Z)
+                    for (let d = -TILE_SIZE/2; d < TILE_SIZE/2; d+=15) {
+                        const dash = new THREE.Mesh(dashGeo, dashMat);
+                        dash.rotation.x = -Math.PI/2;
+                        // ממקם את הפס באמצע הכביש שבין הבלוקים
+                        dash.position.set(centerX + TILE_SIZE/2, 0.02, centerZ + d); 
+                        scene.add(dash);
+                    }
+                    // קווים אופקיים (לאורך ציר X)
+                    for (let d = -TILE_SIZE/2; d < TILE_SIZE/2; d+=15) {
+                        const dash = new THREE.Mesh(dashGeo, dashMat);
+                        dash.rotation.x = -Math.PI/2;
+                        dash.rotation.z = Math.PI/2;
+                        dash.position.set(centerX + d, 0.02, centerZ + TILE_SIZE/2);
+                        scene.add(dash);
+                    }
+                }
             }
         }
+        createRoadMarkings();
 
-        // --- רכב שחקן ---
-        function createCar(color) {
+        // --- בניית רכב (פונקציה גנרית) ---
+        function createCarMesh(color) {
             const grp = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 4.8), new THREE.MeshStandardMaterial({ color: color }));
+            
+            // גוף
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(2.2, 0.8, 4.5),
+                new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, metalness: 0.3 })
+            );
             body.position.y = 0.6;
             body.castShadow = true;
             grp.add(body);
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 2.5), new THREE.MeshStandardMaterial({ color: 0x333333 }));
-            cabin.position.set(0, 1.3, -0.5);
-            grp.add(cabin);
+
+            // גג/חלונות
+            const top = new THREE.Mesh(
+                new THREE.BoxGeometry(1.8, 0.6, 2.5),
+                new THREE.MeshStandardMaterial({ color: 0x333333 }) // חלונות כהים
+            );
+            top.position.set(0, 1.3, -0.2);
+            grp.add(top);
+
+            // פנסים
+            const light = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.1), new THREE.MeshBasicMaterial({ color: 0xffffaa }));
+            const l1 = light.clone(); l1.position.set(-0.7, 0.7, 2.25);
+            const l2 = light.clone(); l2.position.set(0.7, 0.7, 2.25);
+            grp.add(l1); grp.add(l2);
+
             return grp;
         }
 
-        const playerCar = createCar(0xff0000); // רכב אדום
-        // מתחילים באמצע צומת (0,0 ממוקם בין בלוקים)
-        playerCar.position.set(BLOCK_SIZE/2 + ROAD_WIDTH/2, 0, BLOCK_SIZE/2 + ROAD_WIDTH/2); 
-        scene.add(playerCar);
+        // --- שחקן ---
+        const player = createCarMesh(0xd92b2b); // אדום
+        // מתחילים בכביש, בנתיב הימני
+        player.position.set(BLOCK_SIZE/2 + LANE_OFFSET, 0, 0); 
+        scene.add(player);
 
-        // --- מכוניות תנועה (AI) ---
+        // --- רכבי AI (תנועה דו כיוונית) ---
         const traffic = [];
-        // ציר Z (צפון דרום)
-        for(let i=0; i<15; i++) {
-            const t = createCar(Math.random() * 0xffffff);
-            // בוחרים כביש אקראי (X קבוע, Z משתנה)
-            const laneX = Math.floor((Math.random() - 0.5) * CITY_SIZE) * TILE_SIZE + (BLOCK_SIZE/2 + ROAD_WIDTH/2);
-            t.position.set(laneX, 0, (Math.random()-0.5) * 1000);
-            t.userData = { axis: 'z', speed: 0.3 + Math.random()*0.3 };
-            scene.add(t);
-            traffic.push(t);
+        const trafficColors = [0xffffff, 0x333333, 0x2244aa, 0x228822, 0xaa6600];
+
+        // פונקציה ליצירת רכבים בכבישים האנכיים והאופקיים
+        function spawnTraffic() {
+            // כבישים אנכיים (ציר Z)
+            for (let i = 0; i < 20; i++) {
+                const t = createCarMesh(trafficColors[Math.floor(Math.random()*trafficColors.length)]);
+                
+                // בוחרים "טור" של כביש באופן רנדומלי
+                const colIndex = Math.floor((Math.random() - 0.5) * GRID_SIZE); 
+                const roadCenterX = colIndex * TILE_SIZE + TILE_SIZE/2;
+
+                // החלטה על כיוון: 
+                // כיוון 1 (דרום): נוסעים בנתיב הימני (X חיובי ביחס למרכז הכביש)
+                // כיוון -1 (צפון): נוסעים בנתיב השמאלי (X שלילי ביחס למרכז הכביש)
+                const dir = Math.random() > 0.5 ? 1 : -1;
+                
+                // מיקום הנתיב: מרכז הכביש + (כיוון * מרחק הנתיב)
+                // אבל בישראל נוהגים בימין, אז אם אני נוסע דרומה (Z עולה), אני בצד "ימין" שלי.
+                // אם אני נוסע דרומה (Z+), הימין שלי הוא X-. 
+                // אם אני נוסע צפונה (Z-), הימין שלי הוא X+.
+                
+                // תיקון לוגיקת נתיבים:
+                // מכונית שנוסעת לכיוון Z חיובי -> תהיה ב X שלילי (ביחס לקו האמצע)
+                // מכונית שנוסעת לכיוון Z שלילי -> תהיה ב X חיובי
+                
+                const laneX = roadCenterX + (dir === 1 ? -LANE_OFFSET : LANE_OFFSET);
+
+                t.position.set(laneX, 0, (Math.random()-0.5) * 800);
+                if (dir === -1) t.rotation.y = Math.PI; // מסובב את הרכב אם הוא נוסע הפוך
+                
+                t.userData = { axis: 'z', dir: dir, speed: 0.2 + Math.random()*0.2 };
+                scene.add(t);
+                traffic.push(t);
+            }
+
+            // כבישים אופקיים (ציר X)
+            for (let i = 0; i < 20; i++) {
+                const t = createCarMesh(trafficColors[Math.floor(Math.random()*trafficColors.length)]);
+                const rowIndex = Math.floor((Math.random() - 0.5) * GRID_SIZE);
+                const roadCenterZ = rowIndex * TILE_SIZE + TILE_SIZE/2;
+
+                const dir = Math.random() > 0.5 ? 1 : -1;
+                // מכונית שנוסעת ימינה (X+) -> תהיה ב Z חיובי (ביחס לקו)
+                // מכונית שנוסעת שמאלה (X-) -> תהיה ב Z שלילי
+                const laneZ = roadCenterZ + (dir === 1 ? LANE_OFFSET : -LANE_OFFSET);
+
+                t.position.set((Math.random()-0.5) * 800, 0, laneZ);
+                t.rotation.y = dir === 1 ? Math.PI/2 : -Math.PI/2;
+
+                t.userData = { axis: 'x', dir: dir, speed: 0.2 + Math.random()*0.2 };
+                scene.add(t);
+                traffic.push(t);
+            }
         }
-        // ציר X (מזרח מערב)
-        for(let i=0; i<15; i++) {
-            const t = createCar(Math.random() * 0xffffff);
-            // בוחרים כביש אקראי (Z קבוע, X משתנה)
-            const laneZ = Math.floor((Math.random() - 0.5) * CITY_SIZE) * TILE_SIZE + (BLOCK_SIZE/2 + ROAD_WIDTH/2);
-            t.position.set((Math.random()-0.5) * 1000, 0, laneZ);
-            t.rotation.y = Math.PI / 2; // מסובבים את הרכב
-            t.userData = { axis: 'x', speed: 0.3 + Math.random()*0.3 };
-            scene.add(t);
-            traffic.push(t);
-        }
+        spawnTraffic();
 
         // --- שליטה ---
         const keys = {};
@@ -219,64 +287,59 @@
 
         // --- לולאת משחק ---
         let speed = 0, angle = 0;
-        
+
         function animate() {
             requestAnimationFrame(animate);
 
-            // נהיגה
-            if (keys['KeyW'] || keys['ArrowUp']) speed += 0.01;
-            if (keys['KeyS'] || keys['ArrowDown']) speed -= 0.01;
-            speed *= 0.96; // חיכוך
+            // פיזיקת שחקן
+            if (keys['KeyW'] || keys['ArrowUp']) speed += 0.012;
+            if (keys['KeyS'] || keys['ArrowDown']) speed -= 0.012;
+            speed *= 0.96;
             
             if (Math.abs(speed) > 0.001) {
                 const turn = (keys['KeyA'] || keys['ArrowLeft']) ? 0.04 : ((keys['KeyD'] || keys['ArrowRight']) ? -0.04 : 0);
-                angle += turn * (speed / 0.5);
+                angle += turn * (speed / 0.6);
             }
 
-            // חישוב המיקום הבא
-            const nextX = playerCar.position.x + Math.sin(angle) * speed;
-            const nextZ = playerCar.position.z + Math.cos(angle) * speed;
+            const nextX = player.position.x + Math.sin(angle) * speed;
+            const nextZ = player.position.z + Math.cos(angle) * speed;
 
-            // בדיקת התנגשות עם מדרכות (האם אני נכנס לתוך מדרכה?)
-            const playerBox = new THREE.Box3().setFromCenterAndSize(
+            // בדיקת התנגשות עם בניינים/מדרכות
+            const pBox = new THREE.Box3().setFromCenterAndSize(
                 new THREE.Vector3(nextX, 0.5, nextZ), 
                 new THREE.Vector3(2, 1, 4)
             );
-
-            let collision = false;
-            // בדיקה מול כל המדרכות ברשימה
-            for (const box of colliders) {
-                if (playerBox.intersectsBox(box)) {
-                    collision = true;
-                    break;
-                }
+            let crash = false;
+            for(const box of colliders) {
+                if (pBox.intersectsBox(box)) { crash = true; break; }
             }
 
-            if (!collision) {
-                playerCar.position.x = nextX;
-                playerCar.position.z = nextZ;
+            if(!crash) {
+                player.position.x = nextX;
+                player.position.z = nextZ;
             } else {
-                speed = -speed * 0.5; // "בום" - עצירה ורתיעה
+                speed = -speed * 0.5; // התנגשות
             }
-            
-            playerCar.rotation.y = angle;
+            player.rotation.y = angle;
 
-            // עדכון תנועה (AI)
+            // עדכון תנועת AI
             traffic.forEach(t => {
                 if (t.userData.axis === 'z') {
-                    t.position.z += t.userData.speed;
-                    if(t.position.z > 600) t.position.z = -600;
+                    t.position.z += t.userData.speed * t.userData.dir;
+                    // החזרה להתחלה אם יוצאים מהעיר
+                    if (Math.abs(t.position.z) > 500) t.position.z = -500 * t.userData.dir;
                 } else {
-                    t.position.x += t.userData.speed;
-                    if(t.position.x > 600) t.position.x = -600;
+                    t.position.x += t.userData.speed * t.userData.dir;
+                    if (Math.abs(t.position.x) > 500) t.position.x = -500 * t.userData.dir;
                 }
             });
 
             // מצלמה עוקבת
-            camera.position.x = playerCar.position.x - Math.sin(angle) * 20;
-            camera.position.z = playerCar.position.z - Math.cos(angle) * 20;
-            camera.position.y = 12;
-            camera.lookAt(playerCar.position);
+            const camDist = 25;
+            camera.position.x = player.position.x - Math.sin(angle) * camDist;
+            camera.position.z = player.position.z - Math.cos(angle) * camDist;
+            camera.position.y = 15;
+            camera.lookAt(player.position);
 
             renderer.render(scene, camera);
         }
@@ -287,6 +350,7 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
     </script>
 </body>
 </html>

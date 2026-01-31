@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>רבי עקיבא - גרסת ה-Pro</title>
+    <title>רבי עקיבא Pro - צמתים מלאים</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         #ui {
@@ -12,6 +12,7 @@
             padding: 15px; border-right: 5px solid #ffcc00; border-radius: 8px;
             pointer-events: none; z-index: 100; font-weight: bold; font-size: 16px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            text-align: right;
         }
         #controls {
             position: absolute; bottom: 30px; left: 30px;
@@ -24,7 +25,6 @@
             display: flex; align-items: center; justify-content: center;
             color: white; font-size: 35px; user-select: none; backdrop-filter: blur(5px);
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            transition: transform 0.1s;
         }
         .btn:active { transform: scale(0.95); background: rgba(255,255,255,0.3); }
         @media (min-width: 1024px) { #controls { display: none; } }
@@ -33,9 +33,10 @@
 <body>
 
     <div id="ui">
-        <strong>רחוב רבי עקיבא הראשי</strong><br>
-        הפרדה מסומנת בלבד (קו לבן כפול).<br>
-        גרפיקה משופרת: גלגלים, תאורה, מרפסות.
+        <strong>רחוב רבי עקיבא - המלא</strong><br>
+        מסלול: גן ורשה -> חזון איש -> אהרונוביץ'<br>
+        הפרדה ע"י סימון כביש בלבד.<br>
+        שים לב לרמזורים ולשילוט!
     </div>
 
     <div id="controls">
@@ -48,268 +49,247 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        // --- הגדרות כלליות ---
+        // --- הגדרות בסיס ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB); 
-        scene.fog = new THREE.Fog(0x87CEEB, 30, 400); // ערפל רך
+        scene.fog = new THREE.Fog(0x87CEEB, 30, 450);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // צללים רכים ואיכותיים
-        renderer.outputEncoding = THREE.sRGBEncoding; // צבעים מדויקים יותר
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(renderer.domElement);
 
         // --- טקסטורות ---
         const texLoader = new THREE.TextureLoader();
-        
-        // אספלט איכותי
         const asphaltTex = texLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/terrain/grasslight-big.jpg');
-        asphaltTex.wrapS = asphaltTex.wrapT = THREE.RepeatWrapping; 
-        asphaltTex.repeat.set(20, 100);
+        asphaltTex.wrapS = asphaltTex.wrapT = THREE.RepeatWrapping; asphaltTex.repeat.set(20, 100);
         asphaltTex.encoding = THREE.sRGBEncoding;
 
-        // מדרכה
         const pavingTex = texLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/floors/FloorsCheckerboard_S_Diffuse.jpg');
-        pavingTex.wrapS = pavingTex.wrapT = THREE.RepeatWrapping;
-        pavingTex.repeat.set(4, 50);
+        pavingTex.wrapS = pavingTex.wrapT = THREE.RepeatWrapping; pavingTex.repeat.set(4, 50);
 
-        // אבן ירושלמית לבניינים
         const stoneTex = texLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/brick_diffuse.jpg');
         stoneTex.wrapS = stoneTex.wrapT = THREE.RepeatWrapping;
 
         // --- תאורה ---
         const ambLight = new THREE.AmbientLight(0xffffff, 0.5);
         scene.add(ambLight);
-
         const sun = new THREE.DirectionalLight(0xffffff, 1.2);
         sun.position.set(150, 300, 100);
         sun.castShadow = true;
         sun.shadow.mapSize.width = 4096; sun.shadow.mapSize.height = 4096;
-        sun.shadow.camera.left = -300; sun.shadow.camera.right = 300;
-        sun.shadow.camera.top = 500; sun.shadow.camera.bottom = -500;
+        sun.shadow.camera.left = -500; sun.shadow.camera.right = 500;
+        sun.shadow.camera.top = 800; sun.shadow.camera.bottom = -800;
         scene.add(sun);
 
-        // --- בניית הכביש והסימונים ---
+        // --- הגדרת הרחוב והצמתים ---
         const ROAD_WIDTH = 50; 
         const STREET_LENGTH = 2000;
 
-        // 1. משטח האספלט
+        // רשימת הצמתים לפי מיקום Z
+        const INTERSECTIONS = [
+            { z: -600, name: "גן ורשה / ירושלים" },
+            { z: -300, name: "רחוב הרב קוק" },
+            { z: 0, name: "רחוב חזון איש" },
+            { z: 300, name: "רחוב הרב שך" },
+            { z: 600, name: "רחוב אהרונוביץ'" }
+        ];
+
+        // 1. כביש ראשי
         const road = new THREE.Mesh(
             new THREE.PlaneGeometry(ROAD_WIDTH, STREET_LENGTH),
-            new THREE.MeshStandardMaterial({ 
-                map: asphaltTex, 
-                color: 0x555555,
-                roughness: 0.8
-            })
+            new THREE.MeshStandardMaterial({ map: asphaltTex, color: 0x555555, roughness: 0.8 })
         );
         road.rotation.x = -Math.PI / 2;
         road.receiveShadow = true;
         scene.add(road);
 
-        // 2. מדרכות
-        const sidewalkGeo = new THREE.PlaneGeometry(20, STREET_LENGTH);
-        const sidewalkMat = new THREE.MeshStandardMaterial({ map: pavingTex, color: 0xbbbbbb });
-        
-        const swLeft = new THREE.Mesh(sidewalkGeo, sidewalkMat);
-        swLeft.rotation.x = -Math.PI/2; swLeft.position.set(-ROAD_WIDTH/2 - 10, 0.1, 0); swLeft.receiveShadow = true;
-        scene.add(swLeft);
+        // 2. מדרכות לאורך כל הדרך
+        const swGeo = new THREE.PlaneGeometry(20, STREET_LENGTH);
+        const swMat = new THREE.MeshStandardMaterial({ map: pavingTex, color: 0xbbbbbb });
+        const swL = new THREE.Mesh(swGeo, swMat); swL.rotation.x = -Math.PI/2; swL.position.set(-ROAD_WIDTH/2 - 10, 0.1, 0); swL.receiveShadow = true; scene.add(swL);
+        const swR = new THREE.Mesh(swGeo, swMat); swR.rotation.x = -Math.PI/2; swR.position.set(ROAD_WIDTH/2 + 10, 0.1, 0); swR.receiveShadow = true; scene.add(swR);
 
-        const swRight = new THREE.Mesh(sidewalkGeo, sidewalkMat);
-        swRight.rotation.x = -Math.PI/2; swRight.position.set(ROAD_WIDTH/2 + 10, 0.1, 0); swRight.receiveShadow = true;
-        scene.add(swRight);
-
-        // 3. אבני שפה (Curb) - אדום לבן לסירוגין
-        for(let z = -STREET_LENGTH/2; z < STREET_LENGTH/2; z+=4) {
-            const isRed = (z % 8 === 0);
-            const curbColor = isRed ? 0xff0000 : 0xffffff;
-            const curbMat = new THREE.MeshBasicMaterial({ color: curbColor });
-            const curbGeo = new THREE.BoxGeometry(1, 0.4, 4);
-            
-            const cL = new THREE.Mesh(curbGeo, curbMat); cL.position.set(-ROAD_WIDTH/2 - 0.5, 0.2, z + 2); scene.add(cL);
-            const cR = new THREE.Mesh(curbGeo, curbMat); cR.position.set(ROAD_WIDTH/2 + 0.5, 0.2, z + 2); scene.add(cR);
-        }
-
-        // 4. סימוני כביש (ללא גדר!)
-        
-        // קו הפרדה כפול במרכז (לבן רצוף)
-        const centerLineGeo = new THREE.PlaneGeometry(0.8, STREET_LENGTH);
+        // 3. סימוני כביש (ללא גדר!)
         const paintMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
         
-        const line1 = new THREE.Mesh(centerLineGeo, paintMat);
-        line1.rotation.x = -Math.PI/2; line1.position.set(-0.6, 0.05, 0); scene.add(line1);
-        
-        const line2 = new THREE.Mesh(centerLineGeo, paintMat);
-        line2.rotation.x = -Math.PI/2; line2.position.set(0.6, 0.05, 0); scene.add(line2);
+        // קו הפרדה כפול (לבן)
+        const lineGeo = new THREE.PlaneGeometry(0.5, STREET_LENGTH);
+        const l1 = new THREE.Mesh(lineGeo, paintMat); l1.rotation.x = -Math.PI/2; l1.position.set(-0.5, 0.05, 0); scene.add(l1);
+        const l2 = new THREE.Mesh(lineGeo, paintMat); l2.rotation.x = -Math.PI/2; l2.position.set(0.5, 0.05, 0); scene.add(l2);
 
-        // קווים מקווקוים בין הנתיבים
+        // קווקווים בין נתיבים
         const dashGeo = new THREE.PlaneGeometry(0.4, 4);
-        for(let z = -STREET_LENGTH/2; z < STREET_LENGTH/2; z+=10) {
-            // נתיב ימין
-            const dR = new THREE.Mesh(dashGeo, paintMat);
-            dR.rotation.x = -Math.PI/2; dR.position.set(12, 0.05, z); scene.add(dR);
-            // נתיב שמאל
-            const dL = new THREE.Mesh(dashGeo, paintMat);
-            dL.rotation.x = -Math.PI/2; dL.position.set(-12, 0.05, z); scene.add(dL);
+        for(let z=-STREET_LENGTH/2; z<STREET_LENGTH/2; z+=10) {
+            const d1 = new THREE.Mesh(dashGeo, paintMat); d1.rotation.x = -Math.PI/2; d1.position.set(12, 0.05, z); scene.add(d1);
+            const d2 = new THREE.Mesh(dashGeo, paintMat); d2.rotation.x = -Math.PI/2; d2.position.set(-12, 0.05, z); scene.add(d2);
         }
 
-        // --- בניינים, פנסים ופרטים ---
+        // --- אובייקטים ופונקציות ---
         const colliders = [];
 
-        function createBuilding(x, z) {
-            const width = 18;
-            const height = 20 + Math.random() * 25; // גובה משתנה
-            const depth = 20;
-
-            const buildingGroup = new THREE.Group();
-            buildingGroup.position.set(x, 0, z);
-
-            // גוף הבניין
-            const bMesh = new THREE.Mesh(
-                new THREE.BoxGeometry(width, height, depth),
-                new THREE.MeshStandardMaterial({ map: stoneTex, color: 0xe0dacc })
-            );
-            bMesh.position.y = height / 2;
-            bMesh.castShadow = true; bMesh.receiveShadow = true;
-            buildingGroup.add(bMesh);
-
-            // מרפסות (Balconies)
-            const balconyGeo = new THREE.BoxGeometry(width - 4, 1.5, 3);
-            const balconyMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-            for(let h = 5; h < height - 5; h += 4) {
-                const bal = new THREE.Mesh(balconyGeo, balconyMat);
-                // מרפסת פונה לכביש
-                bal.position.set(0, h, (x > 0 ? -depth/2 - 1.5 : depth/2 + 1.5));
-                buildingGroup.add(bal);
-            }
-
-            // סוככים לחנויות (Awnings)
-            const awning = new THREE.Mesh(
-                new THREE.BoxGeometry(width, 0.5, 4),
-                new THREE.MeshStandardMaterial({ color: Math.random()>0.5 ? 0x003366 : 0x660000 })
-            );
-            awning.position.set(0, 4, (x > 0 ? -depth/2 - 2 : depth/2 + 2));
-            buildingGroup.add(awning);
-
-            scene.add(buildingGroup);
+        // יצירת שלט רחוב
+        function createSign(text, x, z) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#005500'; 
+            ctx.fillRect(0,0,512,128);
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 10; ctx.strokeRect(5,5,502,118);
+            ctx.fillStyle = 'white'; ctx.font = 'bold 50px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(text, 256, 64);
             
-            // קוליידר בסיסי
-            const box = new THREE.Box3().setFromObject(bMesh);
-            colliders.push(box);
-        }
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(12, 4, 0.2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas) }));
+            mesh.position.set(x, 8, z);
+            if(x > 0) mesh.rotation.y = -Math.PI/2; else mesh.rotation.y = Math.PI/2;
+            scene.add(mesh);
 
-        // יצירת עמודי תאורה (Street Lamps)
-        function createLamp(x, z) {
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 10, 8), new THREE.MeshStandardMaterial({ color: 0x444444 }));
-            pole.position.set(x, 5, z);
+            // עמוד לשלט
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 8, 8), new THREE.MeshStandardMaterial({ color: 0x444444 }));
+            pole.position.set(x, 4, z);
             scene.add(pole);
-            
-            const head = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 1), new THREE.MeshStandardMaterial({ color: 0x444444 }));
-            head.position.set(x + (x>0?-1:1), 10, z);
-            scene.add(head);
-
-            // האור עצמו (Bulb)
-            const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshBasicMaterial({ color: 0xffffaa }));
-            bulb.position.set(x + (x>0?-1:1), 9.8, z);
-            scene.add(bulb);
         }
 
-        // לולאת יצירת העיר
-        for(let z = -900; z < 900; z += 25) {
-            // דילוג על צמתים (בערך כל 300 מטר)
-            if (Math.abs(z) < 30 || Math.abs(z - 300) < 30 || Math.abs(z + 300) < 30) continue;
+        // יצירת רמזור
+        function createTrafficLight(x, z) {
+            const g = new THREE.Group();
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 8, 8), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+            pole.position.y = 4; g.add(pole);
+            const box = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3.5, 1.5), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+            box.position.y = 7; g.add(box);
+            const r = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({ color: 0xff0000 })); r.position.set(0,8,0.6); g.add(r);
+            const gr = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({ color: 0x00ff00 })); gr.position.set(0,6,0.6); g.add(gr);
+            g.position.set(x, 0, z);
+            // אם בצד ימין מסובב שמאלה ולהפך
+            if(x > 0) g.rotation.y = -Math.PI/2; else g.rotation.y = Math.PI/2;
+            scene.add(g);
+        }
 
-            createBuilding(40, z);
-            createBuilding(-40, z);
+        // יצירת בניין ריאליסטי
+        function createBuilding(x, z) {
+            const w = 18; const h = 20 + Math.random()*20; const d = 20;
+            const g = new THREE.Group(); g.position.set(x, 0, z);
+            
+            const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ map: stoneTex, color: 0xe0dacc }));
+            b.position.y = h/2; b.castShadow = true; b.receiveShadow = true; g.add(b);
 
-            if (z % 50 === 0) {
-                createLamp(28, z);
-                createLamp(-28, z);
+            // מרפסות
+            for(let level=5; level<h-4; level+=4) {
+                const bal = new THREE.Mesh(new THREE.BoxGeometry(w-4, 1.5, 3), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+                bal.position.set(0, level, (x>0 ? -d/2-1.5 : d/2+1.5)); g.add(bal);
+            }
+            // סוכך חנות
+            const awn = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 4), new THREE.MeshStandardMaterial({ color: Math.random()>0.5?0x003366:0x660000 }));
+            awn.position.set(0, 4, (x>0 ? -d/2-2 : d/2+2)); g.add(awn);
+
+            scene.add(g);
+            colliders.push(new THREE.Box3().setFromObject(b));
+        }
+
+        // יצירת מנורת רחוב
+        function createLamp(x, z) {
+            const p = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 9, 8), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+            p.position.set(x, 4.5, z); scene.add(p);
+            const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({ color: 0xffffaa }));
+            bulb.position.set(x + (x>0?-1.5:1.5), 9, z); scene.add(bulb);
+        }
+
+        // --- לולאת הבנייה הראשית (עם דילוג בצמתים) ---
+        for(let z = -900; z < 900; z += 26) {
+            // בדיקה האם המיקום הנוכחי קרוב לאחד הצמתים
+            let isIntersection = false;
+            let currentInter = null;
+            
+            INTERSECTIONS.forEach(inter => {
+                if (Math.abs(z - inter.z) < 40) { // רדיוס של 40 מטר לצומת
+                    isIntersection = true;
+                    currentInter = inter;
+                }
+            });
+
+            if (isIntersection) {
+                // אם אנחנו בדיוק במרכז הצומת (בערך), נבנה כביש חוצה ושלטים
+                if (Math.abs(z - currentInter.z) < 5) {
+                    // כביש חוצה
+                    const cross = new THREE.Mesh(new THREE.PlaneGeometry(200, 40), new THREE.MeshStandardMaterial({ map: asphaltTex, color: 0x555555 }));
+                    cross.rotation.x = -Math.PI/2; cross.position.set(0, 0.02, z); scene.add(cross);
+                    
+                    // רמזורים
+                    createTrafficLight(30, z + 20);
+                    createTrafficLight(-30, z - 20);
+
+                    // שלטים
+                    createSign(currentInter.name, 35, z - 10);
+                    createSign(currentInter.name, -35, z + 10);
+                }
+                continue; // מדלגים על בניית בניין
+            }
+
+            // בנייה רגילה
+            createBuilding(45, z);
+            createBuilding(-45, z);
+
+            if (z % 52 === 0) {
+                createLamp(30, z);
+                createLamp(-30, z);
             }
         }
 
-        // --- יצירת רכב ריאליסטי (עם גלגלים) ---
+        // --- יצירת רכב משודרג ---
         function createCarMesh(color, isBus) {
-            const carGroup = new THREE.Group();
-
-            const length = isBus ? 12 : 4.8;
-            const width = isBus ? 3.5 : 2.2;
-            const height = isBus ? 3.5 : 1.4;
-            const wheelY = isBus ? 0.8 : 0.4;
-
-            // גוף הרכב
-            const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.3 });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(width, height - wheelY, length), bodyMat);
-            body.position.y = wheelY + (height - wheelY)/2;
-            body.castShadow = true;
-            carGroup.add(body);
-
-            if (!isBus) {
-                // גג לרכב פרטי
-                const cabin = new THREE.Mesh(new THREE.BoxGeometry(width - 0.4, 0.6, length * 0.5), new THREE.MeshStandardMaterial({ color: 0x333333 }));
-                cabin.position.y = height + 0.2;
-                cabin.position.z = -0.2;
-                carGroup.add(cabin);
+            const g = new THREE.Group();
+            const l = isBus ? 12 : 4.8, w = isBus ? 3.5 : 2.2, h = isBus ? 3.5 : 1.4, wy = isBus ? 0.8 : 0.4;
+            
+            // גוף
+            const b = new THREE.Mesh(new THREE.BoxGeometry(w, h-wy, l), new THREE.MeshStandardMaterial({ color: color, roughness:0.2, metalness:0.3 }));
+            b.position.y = wy + (h-wy)/2; b.castShadow = true; g.add(b);
+            
+            // גג לרכב פרטי
+            if(!isBus) {
+                const c = new THREE.Mesh(new THREE.BoxGeometry(w-0.4, 0.6, l*0.5), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                c.position.set(0, h+0.2, -0.2); g.add(c);
             }
 
             // גלגלים
-            const wheelGeo = new THREE.CylinderGeometry(wheelY, wheelY, width + 0.2, 12);
-            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-            wheelGeo.rotateZ(Math.PI / 2);
-
-            const wZ = length * 0.35;
-            const w1 = new THREE.Mesh(wheelGeo, wheelMat); w1.position.set(0, wheelY, wZ); carGroup.add(w1);
-            const w2 = new THREE.Mesh(wheelGeo, wheelMat); w2.position.set(0, wheelY, -wZ); carGroup.add(w2);
+            const wg = new THREE.CylinderGeometry(wy, wy, w+0.2, 12); wg.rotateZ(Math.PI/2);
+            const wm = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            const w1=new THREE.Mesh(wg,wm); w1.position.set(0,wy,l*0.35); g.add(w1);
+            const w2=new THREE.Mesh(wg,wm); w2.position.set(0,wy,-l*0.35); g.add(w2);
 
             // פנסים
-            const lightGeo = new THREE.BoxGeometry(width * 0.2, 0.2, 0.1);
-            const headLightMat = new THREE.MeshBasicMaterial({ color: 0xffffaa });
-            const tailLightMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const lg=new THREE.BoxGeometry(w*0.2,0.2,0.1);
+            const hl=new THREE.Mesh(lg,new THREE.MeshBasicMaterial({color:0xffffaa})); hl.position.set(w*0.3,wy+0.5,l/2+0.05); g.add(hl);
+            const hll=hl.clone(); hll.position.set(-w*0.3,wy+0.5,l/2+0.05); g.add(hll);
             
-            // קדמיים
-            const hl1 = new THREE.Mesh(lightGeo, headLightMat); hl1.position.set(-width*0.3, wheelY + 0.5, length/2 + 0.05); carGroup.add(hl1);
-            const hl2 = new THREE.Mesh(lightGeo, headLightMat); hl2.position.set(width*0.3, wheelY + 0.5, length/2 + 0.05); carGroup.add(hl2);
-            
-            // אחוריים
-            const tl1 = new THREE.Mesh(lightGeo, tailLightMat); tl1.position.set(-width*0.3, wheelY + 0.5, -length/2 - 0.05); carGroup.add(tl1);
-            const tl2 = new THREE.Mesh(lightGeo, tailLightMat); tl2.position.set(width*0.3, wheelY + 0.5, -length/2 - 0.05); carGroup.add(tl2);
-
-            return carGroup;
+            return g;
         }
 
         // --- שחקן ---
-        const player = createCarMesh(0x0055ff, false); // רכב כחול ספורטיבי
-        player.position.set(6, 0, -800);
+        const player = createCarMesh(0x0044ff, false);
+        player.position.set(6, 0, -850); // מתחיל לפני גן ורשה
         player.userData = { speed: 0, angle: 0 };
         scene.add(player);
 
-        // --- תנועה (AI) ---
+        // --- תנועה ---
         const traffic = [];
-        const lanes = [6, 18, -6, -18]; // מרכזי הנתיבים
+        const lanes = [6, 18, -6, -18];
 
         function spawnTraffic() {
-            for(let i=0; i<40; i++) {
-                const lane = lanes[Math.floor(Math.random() * lanes.length)];
-                const isBus = Math.random() < 0.25; // 25% שזה אוטובוס
-                const color = isBus ? 0xffcc00 : Math.random() * 0xffffff;
+            for(let i=0; i<45; i++) {
+                const lane = lanes[Math.floor(Math.random()*lanes.length)];
+                const isBus = Math.random() < 0.25;
+                const c = createCarMesh(isBus?0xffcc00:Math.random()*0xffffff, isBus);
+                const z = (Math.random()-0.5)*1800;
+                c.position.set(lane, 0, z);
                 
-                const car = createCarMesh(color, isBus);
-                const zPos = (Math.random()-0.5) * 1600;
-                
-                car.position.set(lane, 0, zPos);
-                
-                // כיוון נסיעה
                 const dir = lane > 0 ? 1 : -1;
-                if (dir === -1) car.rotation.y = Math.PI;
-
-                car.userData = { 
-                    lane: lane, 
-                    speed: (isBus ? 0.2 : 0.35) * dir 
-                };
-                
-                scene.add(car);
-                traffic.push(car);
+                if(dir === -1) c.rotation.y = Math.PI;
+                c.userData = { lane: lane, speed: (isBus?0.18:0.32)*dir };
+                scene.add(c);
+                traffic.push(c);
             }
         }
         spawnTraffic();
@@ -322,11 +302,10 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // נהיגה
             if (keys['KeyW'] || keys['ArrowUp']) player.userData.speed += 0.01;
             if (keys['KeyS'] || keys['ArrowDown']) player.userData.speed -= 0.01;
             player.userData.speed *= 0.96;
-            
+
             if (Math.abs(player.userData.speed) > 0.001) {
                 const turn = (keys['KeyA'] || keys['ArrowLeft']) ? 0.03 : ((keys['KeyD'] || keys['ArrowRight']) ? -0.03 : 0);
                 player.userData.angle += turn * (player.userData.speed / 0.5);
@@ -335,43 +314,30 @@
             const nextX = player.position.x + Math.sin(player.userData.angle) * player.userData.speed;
             const nextZ = player.position.z + Math.cos(player.userData.angle) * player.userData.speed;
 
-            // התנגשות בבניינים
             const pBox = new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(nextX, 0.5, nextZ), new THREE.Vector3(2, 1, 4));
             let crash = false;
             for(const box of colliders) { if (pBox.intersectsBox(box)) { crash = true; break; } }
 
-            if(!crash) { 
-                player.position.x = nextX; 
-                player.position.z = nextZ; 
-            } else { 
-                player.userData.speed = -player.userData.speed * 0.5; 
-            }
+            if(!crash) { player.position.x = nextX; player.position.z = nextZ; }
+            else { player.userData.speed = -player.userData.speed * 0.5; }
             player.rotation.y = player.userData.angle;
 
-            // תנועת AI
             traffic.forEach(t => {
                 t.position.z += t.userData.speed;
-                // לולאה אינסופית
                 if(t.position.z > 950) t.position.z = -950;
                 if(t.position.z < -950) t.position.z = 950;
             });
 
-            // מצלמה
             camera.position.x = player.position.x;
             camera.position.y = 8;
-            camera.position.z = player.position.z - (Math.cos(player.userData.angle) * 18);
-            camera.position.x -= Math.sin(player.userData.angle) * 18;
+            camera.position.z = player.position.z - (Math.cos(player.userData.angle)*18);
+            camera.position.x -= Math.sin(player.userData.angle)*18;
             camera.lookAt(player.position.x, 2, player.position.z);
 
             renderer.render(scene, camera);
         }
         animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     </script>
 </body>
 </html>

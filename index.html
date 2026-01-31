@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bnei Brak 3D - Real Images</title>
+    <title>Bnei Brak 3D - Online Version</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         #ui {
@@ -51,17 +51,17 @@
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // --- טעינת תמונות (Textures) ---
+        // --- טעינת תמונות (Textures) מקישורים ציבוריים ---
         const textureLoader = new THREE.TextureLoader();
         
-        // טעינת תמונת העיר שהעלית
-        const cityTexture = textureLoader.load('modern-tokyo-street-background.jpg');
+        // תיקון: שימוש בטקסטורת לבנים/אספלט ציבורית
+        const cityTexture = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/brick_diffuse.jpg');
         cityTexture.wrapS = THREE.RepeatWrapping;
         cityTexture.wrapT = THREE.RepeatWrapping;
-        cityTexture.repeat.set(10, 10); // משכפל את התמונה כדי שלא תהיה מרוחה מדי
+        cityTexture.repeat.set(20, 20); // צופפתי את הטקסטורה למראה ריאליסטי יותר
 
-        // טעינת תמונת הניידת פרארי שהעלית
-        const carTexture = textureLoader.load('1962_ferrari_250_gte_polizia_by_tom_gidden_for_girardo_and_co._4.webp');
+        // תיקון: שימוש בטקסטורה טכנולוגית לרכב
+        const carTexture = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/uv_grid_opengl.jpg');
 
         // --- תאורה ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -79,10 +79,10 @@
         const stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 }));
         scene.add(stars);
 
-        // --- קרקע (עם התמונה שלך) ---
+        // --- קרקע ---
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(1000, 1000),
-            new THREE.MeshPhongMaterial({ map: cityTexture }) // שימוש בתמונה
+            new THREE.MeshPhongMaterial({ map: cityTexture }) 
         );
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
@@ -91,9 +91,12 @@
         // --- בניינים ---
         const buildings = [];
         const buildingGeom = new THREE.BoxGeometry(1, 1, 1);
+        // יצירת חומר אחד לכולם לשיפור ביצועים
+        const buildingMaterial = new THREE.MeshPhongMaterial({ color: 0x888899 }); 
+
         for (let i = 0; i < 70; i++) {
             const h = 10 + Math.random() * 25;
-            const b = new THREE.Mesh(buildingGeom, new THREE.MeshPhongMaterial({ color: 0x333344 }));
+            const b = new THREE.Mesh(buildingGeom, buildingMaterial);
             b.scale.set(8, h, 8);
             b.position.set((Math.random()-0.5)*400, h/2, (Math.random()-0.5)*400);
             if (Math.abs(b.position.x) < 20 && Math.abs(b.position.z) < 20) continue;
@@ -102,9 +105,8 @@
             buildings.push(new THREE.Box3().setFromObject(b));
         }
 
-        // --- רכב שחקן (עם תמונת הניידת) ---
+        // --- רכב שחקן ---
         const car = new THREE.Group();
-        // שימוש בתמונה כחומר לציפוי המכונית
         const carBody = new THREE.Mesh(
             new THREE.BoxGeometry(2.2, 1, 4.5), 
             new THREE.MeshPhongMaterial({ map: carTexture }) 
@@ -124,26 +126,28 @@
 
         // --- תנועה (AI) ---
         const trafficCars = [];
+        const trafficMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff }); // בסיס לצביעה
         for (let i = 0; i < 15; i++) {
-            const tc = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshPhongMaterial({ color: Math.random()*0xffffff }));
+            const tc = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff }));
             tc.position.set((Math.random()-0.5)*300, 0.5, (Math.random()-0.5)*300);
             tc.userData = { speed: 0.1 + Math.random()*0.2 };
             scene.add(tc);
             trafficCars.push(tc);
         }
 
-        // --- אנשים (CylinderGeometry - התיקון) ---
+        // --- הולכי רגל (כחולים) ---
         const people = [];
         const personGeom = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
+        const personMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
         for (let i = 0; i < 30; i++) {
-            const p = new THREE.Mesh(personGeom, new THREE.MeshPhongMaterial({ color: 0x0000ff }));
+            const p = new THREE.Mesh(personGeom, personMaterial);
             p.position.set((Math.random()-0.5)*200, 0.75, (Math.random()-0.5)*200);
             p.userData = { angle: Math.random()*Math.PI*2, speed: 0.03 };
             scene.add(p);
             people.push(p);
         }
 
-        // --- שליטה (מגע + מקלדת) ---
+        // --- שליטה ---
         const keys = {};
         window.onkeydown = e => keys[e.code] = true;
         window.onkeyup = e => keys[e.code] = false;
@@ -163,7 +167,6 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // יום ולילה
             worldTime += 0.0005; if (worldTime > 1) worldTime = 0;
             const isNight = worldTime > 0.45 && worldTime < 0.9;
             scene.background = new THREE.Color(isNight ? 0x020205 : 0x87ceeb);
@@ -172,7 +175,6 @@
             headlight.intensity = isNight ? 4 : 0;
             document.getElementById('timeDisplay').innerText = isNight ? "לילה" : "יום";
 
-            // נהיגה
             if (keys['KeyW'] || keys['ArrowUp'] || touch.up) speed += 0.015;
             if (keys['KeyS'] || keys['ArrowDown'] || touch.down) speed -= 0.015;
             speed *= 0.95;
@@ -185,7 +187,6 @@
             const nextX = car.position.x + Math.sin(angle) * speed;
             const nextZ = car.position.z + Math.cos(angle) * speed;
             
-            // התנגשויות
             const carBox = new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(nextX, 0.5, nextZ), new THREE.Vector3(2, 1, 4));
             let collision = false;
             buildings.forEach(b => { if(carBox.intersectsBox(b)) collision = true; });
@@ -198,7 +199,6 @@
             }
             car.rotation.y = angle;
 
-            // עדכון תנועה ואנשים
             trafficCars.forEach(tc => { tc.position.z += tc.userData.speed; if(tc.position.z > 300) tc.position.z = -300; });
             people.forEach(p => {
                 p.position.x += Math.sin(p.userData.angle)*p.userData.speed;
@@ -206,14 +206,12 @@
                 if(Math.abs(p.position.x) > 300) p.position.x = 0;
             });
 
-            // מצלמה
             camera.position.set(car.position.x - Math.sin(angle)*12, 6, car.position.z - Math.cos(angle)*12);
             camera.lookAt(car.position);
             renderer.render(scene, camera);
         }
         animate();
         
-        // התאמה לחלון
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();

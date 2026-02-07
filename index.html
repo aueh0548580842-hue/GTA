@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>רבי עקיבא Pro - הגרסה הסופית</title>
+    <title>רבי עקיבא Pro - גרסת התיקון</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
+        body { margin: 0; overflow: hidden; background: #020205; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         #ui {
             position: absolute; top: 10px; right: 10px;
             color: #fff; background: rgba(0,0,0,0.85);
@@ -35,9 +35,9 @@
 
     <div id="alert">ניידת משטרה במרדף! 🚔</div>
     <div id="ui">
-        <strong>רחוב רבי עקיבא - לילה סוער</strong><br>
+        <strong>רחוב רבי עקיבא - תיקון תצוגה</strong><br>
         עבירות: <span id="violation-count">0</span>/3<br>
-        <small>מקש רווח לצופר | זהירות על הולכי הרגל!</small>
+        <small>חצים לנהיגה | רווח לצופר</small>
     </div>
 
     <div id="controls">
@@ -54,67 +54,64 @@
         // --- Setup ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x020205);
-        scene.fog = new THREE.Fog(0x000000, 10, 400);
+        scene.fog = new THREE.Fog(0x000000, 10, 450);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const ambLight = new THREE.AmbientLight(0x202035, 0.5);
+        const ambLight = new THREE.AmbientLight(0x404050, 0.8);
         scene.add(ambLight);
 
-        // --- Road & Rain ---
-        const road = new THREE.Mesh(new THREE.PlaneGeometry(60, 2000), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.1 }));
+        // --- Road (No Textures for stability) ---
+        const road = new THREE.Mesh(
+            new THREE.PlaneGeometry(60, 4000), 
+            new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 })
+        );
         road.rotation.x = -Math.PI / 2; scene.add(road);
 
+        // --- Rain ---
         const rainGeo = new THREE.BufferGeometry();
-        const rainPos = new Float32Array(5000 * 3);
-        for(let i=0; i<15000; i+=3) { rainPos[i]=(Math.random()-0.5)*200; rainPos[i+1]=Math.random()*100; rainPos[i+2]=(Math.random()-0.5)*600; }
+        const rainPos = new Float32Array(3000 * 3);
+        for(let i=0; i<9000; i+=3) { 
+            rainPos[i]=(Math.random()-0.5)*200; 
+            rainPos[i+1]=Math.random()*100; 
+            rainPos[i+2]=(Math.random()-0.5)*800; 
+        }
         rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
-        const rain = new THREE.Points(rainGeo, new THREE.PointsMaterial({ color: 0x888888, size: 0.1 }));
+        const rain = new THREE.Points(rainGeo, new THREE.PointsMaterial({ color: 0xaaaaaa, size: 0.1 }));
         scene.add(rain);
 
-        // --- Traffic & Pedestrians ---
-        let violationCount = 0;
-        let trafficState = "GREEN";
-        const INTERSECTIONS = [-600, -300, 0, 300, 600];
+        // --- Simple Buildings ---
+        for(let z=-1500; z<1500; z+=100) {
+            const h = 30 + Math.random()*40;
+            const bL = new THREE.Mesh(new THREE.BoxGeometry(20, h, 40), new THREE.MeshStandardMaterial({color: 0x0a0a0f}));
+            bL.position.set(-45, h/2, z); scene.add(bL);
+            const bR = bL.clone(); bR.position.x = 45; scene.add(bR);
+        }
+
+        // --- Traffic Lights ---
+        const INTERSECTIONS = [-800, -400, 0, 400, 800];
         const lights = [];
-        const pedestrians = [];
-
-        function createPedestrian(z) {
-            const g = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.2, 4, 8), new THREE.MeshStandardMaterial({color: 0x111111}));
-            g.position.set(-35, 1, z + (Math.random()-0.5)*10);
-            g.userData = { speed: 0.1 + Math.random()*0.05, active: false, targetZ: z };
-            scene.add(g);
-            pedestrians.push(g);
-        }
-
-        function createLight(z) {
+        INTERSECTIONS.forEach(z => {
             const g = new THREE.Group();
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 10), new THREE.MeshStandardMaterial({color: 0x111}));
-            pole.position.y = 5; g.add(pole);
-            const r = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({color: 0x200})); r.position.set(0, 10, 0.7); g.add(r);
-            const gr = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({color: 0x020})); gr.position.set(0, 8, 0.7); g.add(gr);
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 12), new THREE.MeshStandardMaterial({color: 0x222}));
+            pole.position.y = 6; g.add(pole);
+            const r = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshBasicMaterial({color: 0x300}));
+            r.position.set(0, 11, 0.8); g.add(r);
+            const gr = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshBasicMaterial({color: 0x030}));
+            gr.position.set(0, 9, 0.8); g.add(gr);
             g.position.set(28, 0, z); scene.add(g);
-            lights.push({r, gr});
-            createPedestrian(z);
-        }
-        INTERSECTIONS.forEach(createLight);
+            lights.push({r, gr, z});
+        });
 
-        // --- Police ---
-        const police = new THREE.Group();
-        const pBody = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.5, 4.8), new THREE.MeshStandardMaterial({color: 0xeee}));
-        pBody.position.y = 0.75; police.add(pBody);
-        const pLight = new THREE.PointLight(0xff0000, 0, 40); pLight.position.y = 2; police.add(pLight);
-        police.position.set(100, 0, 0); scene.add(police);
-
-        // --- Player ---
+        // --- Player Car ---
         const player = new THREE.Group();
-        const car = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.4, 4.8), new THREE.MeshStandardMaterial({color: 0x0044ff}));
-        car.position.y = 0.7; player.add(car);
-        const hornLight = new THREE.PointLight(0xffff00, 0, 10); hornLight.position.set(0, 1, 2.5); player.add(hornLight);
-        player.userData = { speed: 0, angle: 0 };
+        const car = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.5, 5), new THREE.MeshStandardMaterial({color: 0x0055ff}));
+        car.position.y = 0.75; player.add(car);
+        const headL = new THREE.SpotLight(0xffffff, 10, 100); headL.position.set(0, 1, 2.5); player.add(headL);
+        player.userData = { speed: 0, angle: 0, violations: 0 };
         scene.add(player);
 
         // --- Input ---
@@ -125,59 +122,56 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // Traffic & Pedestrian Logic
-            const cycle = Date.now() % 12000;
-            trafficState = (cycle < 7000) ? "GREEN" : "RED";
-            
+            // Logic: Traffic State
+            const state = (Date.now() % 10000 < 5000) ? "GREEN" : "RED";
             lights.forEach(l => {
-                l.r.material.color.set(trafficState === "RED" ? 0xff0000 : 0x220000);
-                l.gr.material.color.set(trafficState === "GREEN" ? 0x00ff00 : 0x002200);
+                l.r.material.color.set(state === "RED" ? 0xff0000 : 0x330000);
+                l.gr.material.color.set(state === "GREEN" ? 0x00ff00 : 0x003300);
             });
 
-            pedestrians.forEach(p => {
-                if (trafficState === "RED") {
-                    p.position.x += p.userData.speed;
-                    if (p.position.x > 35) p.position.x = -35;
-                }
-            });
-
-            // Player movement
+            // Player Physics
             if(keys['ArrowUp'] || keys['KeyW']) player.userData.speed += 0.02;
             if(keys['ArrowDown'] || keys['KeyS']) player.userData.speed -= 0.02;
             player.userData.speed *= 0.96;
-            if(Math.abs(player.userData.speed) > 0.01) {
-                if(keys['ArrowLeft'] || keys['KeyA']) player.userData.angle += 0.035;
-                if(keys['ArrowRight'] || keys['KeyD']) player.userData.angle -= 0.035;
+            if(Math.abs(player.userData.speed) > 0.1) {
+                if(keys['ArrowLeft'] || keys['KeyA']) player.userData.angle += 0.03;
+                if(keys['ArrowRight'] || keys['KeyD']) player.userData.angle -= 0.03;
             }
             player.position.x += Math.sin(player.userData.angle) * player.userData.speed;
             player.position.z += Math.cos(player.userData.angle) * player.userData.speed;
             player.rotation.y = player.userData.angle;
 
-            // Horn & Violation
-            hornLight.intensity = (keys['Space'] || keys['Space']) ? 5 : 0;
-            if(trafficState === "RED" && !player.userData.violated) {
-                INTERSECTIONS.forEach(z => {
-                    if(Math.abs(player.position.z - z) < 8) {
-                        violationCount++; player.userData.violated = true;
-                        document.getElementById('violation-count').innerText = Math.min(violationCount, 3);
-                        setTimeout(() => player.userData.violated = false, 2000);
+            // Violation check
+            if(state === "RED") {
+                lights.forEach(l => {
+                    if(Math.abs(player.position.z - l.z) < 10 && !player.userData.violated) {
+                        player.userData.violations++;
+                        player.userData.violated = true;
+                        document.getElementById('violation-count').innerText = Math.min(player.userData.violations, 3);
+                        setTimeout(() => player.userData.violated = false, 3000);
                     }
                 });
             }
 
-            if(violationCount >= 3) {
-                document.getElementById('alert').style.display = 'block';
-                police.position.lerp(new THREE.Vector3(player.position.x, 0, player.position.z - 12), 0.04);
-                police.lookAt(player.position);
-                pLight.intensity = Math.sin(Date.now()*0.01) > 0 ? 15 : 0;
-                pLight.color.set(Math.sin(Date.now()*0.01) > 0 ? 0xff0000 : 0x0000ff);
-            }
+            // Rain movement
+            const p = rainGeo.attributes.position.array;
+            for(let i=1; i<p.length; i+=3) { p[i]-=1.5; if(p[i]<0) p[i]=100; }
+            rainGeo.attributes.position.needsUpdate = true;
+            rain.position.z = player.position.z;
 
-            camera.position.set(player.position.x - Math.sin(player.userData.angle)*15, 8, player.position.z - Math.cos(player.userData.angle)*15);
+            // Camera follow
+            camera.position.set(player.position.x - Math.sin(player.userData.angle)*18, 9, player.position.z - Math.cos(player.userData.angle)*18);
             camera.lookAt(player.position.x, 2, player.position.z);
+
             renderer.render(scene, camera);
         }
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
